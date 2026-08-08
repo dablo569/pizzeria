@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Мій акаунт | BestPizza</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles/styles.css') }}">
+
+    <style>
+        .profile-container {
+            max-width: 900px;
+            margin: 50px auto;
+            overflow: hidden;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .profile-header {
+            padding: 40px 20px;
+            background: #ff5722;
+            color: white;
+            text-align: center;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: white;
+            color: #ff5722;
+            font-size: 60px;
+            font-weight: bold;
+        }
+
+        .profile-header h1 {
+            margin: 20px 0 0;
+            overflow-wrap: anywhere;
+            font-size: 34px;
+        }
+
+        .profile-content {
+            padding: 35px;
+        }
+
+        .info-card {
+            margin-bottom: 20px;
+            padding: 22px;
+            border: 1px solid #ececec;
+            border-radius: 12px;
+            background: #fafafa;
+        }
+
+        .info-card h2 {
+            margin: 0 0 16px;
+            color: #ff5722;
+        }
+
+        .info {
+            margin: 12px 0;
+            overflow-wrap: anywhere;
+            font-size: 18px;
+        }
+
+        .profile-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .profile-button {
+            flex: 1;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .home-button {
+            background: #ececec;
+            color: #333;
+        }
+
+        .home-button:hover {
+            background: #d7d7d7;
+        }
+
+        .logout-button-profile {
+            background: #e53935;
+            color: white;
+        }
+
+        .logout-button-profile:hover {
+            background: #c62828;
+        }
+
+        @media (max-width: 600px) {
+            .profile-container {
+                margin: 20px 10px;
+            }
+
+            .profile-content {
+                padding: 20px;
+            }
+
+            .profile-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="profile-container">
+
+    <header class="profile-header">
+
+        <div class="avatar">
+            {{ username[:1]|upper }}
+        </div>
+
+        <h1>{{ username }}</h1>
+
+    </header>
+
+
+    <main class="profile-content">
+
+        <section class="info-card">
+            <h2>Інформація про акаунт</h2>
+
+            <div class="info">
+                👤 <strong>Логін:</strong>
+                {{ username }}
+            </div>
+
+            <div class="info">
+                📍 <strong>Місто:</strong>
+                {{ liveplace }}
+            </div>
+        </section>
+
+
+        <section class="info-card">
+            <h2>Статистика</h2>
+
+            <div class="info">
+                🍕 <strong>Замовлень:</strong> 0
+            </div>
+
+            <div class="info">
+                ❤️ <strong>Улюблених товарів:</strong> 0
+            </div>
+
+            <div class="info">
+                ⭐ <strong>Статус:</strong> Новий клієнт
+            </div>
+        </section>
+
+
+        <div class="profile-buttons">
+
+            <a
+                href="{{ url_for('index') }}"
+                class="profile-button home-button">
+                ← На головну
+            </a>
+
+            <a
+                href="{{ url_for('logout') }}"
+                class="profile-button logout-button-profile">
+                Вийти
+            </a>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

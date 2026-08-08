@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BestPizza | Меню</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles/styles.css') }}">
+</head>
+
+
+<!-- Плаваюча кнопка кошика -->
+<button
+    type="button"
+    class="floating-cart-button"
+    onclick="openCart()">
+
+    🛒
+    <span id="cart-count" class="cart-count">0</span>
+</button>
+
+
+<!-- Вікно кошика -->
+<div id="cart-modal" class="cart-modal">
+
+    <div class="cart-window">
+
+        <button
+            type="button"
+            class="close-cart-button"
+            onclick="closeCart()">
+            ×
+        </button>
+
+        <h2>Ваше замовлення</h2>
+
+        <div id="cart-items"></div>
+
+        <div class="cart-total">
+            Загальна сума:
+            <strong>
+                <span id="cart-total">0.00</span> грн
+            </strong>
+        </div>
+
+        <div class="checkout-form">
+
+            <label for="city">
+                Місто доставки
+            </label>
+
+            <input
+                id="city"
+                type="text"
+                value="{{ session.get('liveplace', '') }}"
+                readonly
+                class="readonly-input">
+
+            <label for="address">
+                Адреса доставки
+            </label>
+
+            <input
+                id="address"
+                type="text"
+                placeholder="Наприклад: вул. Руська, 10"
+                required>
+
+            <p class="payment-title">
+                Спосіб оплати
+            </p>
+
+            <label class="payment-option">
+                <input
+                    type="radio"
+                    name="payment"
+                    value="card">
+                Оплата карткою
+            </label>
+
+            <label class="payment-option">
+                <input
+                    type="radio"
+                    name="payment"
+                    value="cash">
+                Оплата готівкою при доставці
+            </label>
+
+            <button
+                id="confirm-order-button"
+                type="button"
+                class="confirm-order-button"
+                onclick="confirmOrder()"
+                disabled>
+                Підтвердити замовлення
+            </button>
+
+        </div>
+
+        <p id="checkout-message" class="checkout-message"></p>
+
+    </div>
+
+</div>
+
+
+<!-- Вікно подяки -->
+<div id="thank-you-modal" class="thank-you-modal">
+
+    <div class="thank-you-window">
+
+        <div class="thank-you-icon">
+            ✅
+        </div>
+
+        <h2>Дякуємо за замовлення!</h2>
+
+        <p>
+            Ваше замовлення прийнято.
+        </p>
+
+        <button
+            type="button"
+            class="confirm-order-button"
+            onclick="closeThankYou()">
+            Добре
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+    let currentCart = {
+        items: [],
+        total: 0,
+        count: 0
+    };
+
+
+    async function addProduct(productName, button) {
+        const response = await fetch("/cart/add", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: productName
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            alert(result.message || "Помилка додавання товару.");
+            return;
+        }
+
+        const controls = button.closest(".product-controls");
+
+        button.style.display = "none";
+
+        const quantityControls = controls.querySelector(
+            ".quantity-controls"
+        );
+
+        quantityControls.style.display = "flex";
+
+        updateCart();
+    }
+
+
+    async function changeProduct(productName, change) {
+        const response = await fetch("/cart/change", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: productName,
+                change: change
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            alert(result.message || "Помилка зміни кількості.");
+            return;
+        }
+
+        updateProductQuantity(productName);
+        updateCart();
+    }
+
+
+    async function updateProductQuantity(productName) {
+        const response = await fetch("/cart/data");
+        const cart = await response.json();
+
+        const item = cart.items.find(
+            item => item.name === productName
+        );
+
+        const controls = document.querySelector(
+            `[data-product="${CSS.escape(productName)}"]`
+        );
+
+        if (!controls) {
+            return;
+        }
+
+        const addButton = controls.querySelector(".add-button");
+        const quantityControls = controls.querySelector(
+            ".quantity-controls"
+        );
+        const quantityNumber = controls.querySelector(
+            ".quantity-number"
+        );
+
+        if (!item) {
+            addButton.style.display = "block";
+            quantityControls.style.display = "none";
+            quantityNumber.textContent = "1";
+            return;
+        }
+
+        addButton.style.display = "none";
+        quantityControls.style.display = "flex";
+        quantityNumber.textContent = item.quantity;
+    }
+
+
+    async function updateCart() {
+        const response = await fetch("/cart/data");
+        const cart = await response.json();
+
+        currentCart = cart;
+
+        document.getElementById("cart-count").textContent = cart.count;
+        document.getElementById("cart-total").textContent =
+            cart.total.toFixed(2);
+
+        for (const item of cart.items) {
+            updateProductQuantity(item.name);
+        }
+    }
+
+
+    async function openCart() {
+        await updateCart();
+
+        const cartItems = document.getElementById("cart-items");
+
+        if (currentCart.items.length === 0) {
+            cartItems.innerHTML = `
+                <p class="empty-cart">
+                    Кошик поки що порожній.
+                </p>
+            `;
+        } else {
+            cartItems.innerHTML = currentCart.items.map(item => `
+                <div class="cart-item">
+
+                    <img
+                        src="${item.photo}"
+                        alt="${item.name}"
+                        class="cart-item-image">
+
+                    <div class="cart-item-info">
+                        <strong>${item.name}</strong>
+                        <span>
+                            ${item.price.toFixed(2)} грн ×
+                            ${item.quantity}
+                        </span>
+                    </div>
+
+                    <strong>
+                        ${item.item_total.toFixed(2)} грн
+                    </strong>
+
+                </div>
+            `).join("");
+        }
+
+        document.getElementById("cart-modal").style.display = "flex";
+        validateCheckout();
+    }
+
+
+    function closeCart() {
+        document.getElementById("cart-modal").style.display = "none";
+    }
+
+
+    function validateCheckout() {
+        const address = document
+            .getElementById("address")
+            .value
+            .trim();
+
+        const payment = document.querySelector(
+            'input[name="payment"]:checked'
+        );
+
+        const confirmButton = document.getElementById(
+            "confirm-order-button"
+        );
+
+        confirmButton.disabled = !(
+            currentCart.items.length > 0 &&
+            address.length > 0 &&
+            payment
+        );
+    }
+
+
+    async function confirmOrder() {
+        const address = document
+            .getElementById("address")
+            .value
+            .trim();
+
+        const payment = document.querySelector(
+            'input[name="payment"]:checked'
+        );
+
+        if (!address || !payment || currentCart.items.length === 0) {
+            return;
+        }
+
+        const response = await fetch("/checkout", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                address: address,
+                payment: payment.value
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            document.getElementById(
+                "checkout-message"
+            ).textContent = result.message;
+
+            return;
+        }
+
+        closeCart();
+
+        document.getElementById("thank-you-modal").style.display = "flex";
+
+        document.getElementById("address").value = "";
+
+        document.querySelectorAll(
+            'input[name="payment"]'
+        ).forEach(input => {
+            input.checked = false;
+        });
+
+        await updateCart();
+
+        document.querySelectorAll(".product-controls").forEach(
+            controls => {
+                const addButton = controls.querySelector(".add-button");
+                const quantityControls = controls.querySelector(
+                    ".quantity-controls"
+                );
+
+                addButton.style.display = "block";
+                quantityControls.style.display = "none";
+            }
+        );
+    }
+
+
+    function closeThankYou() {
+        document.getElementById(
+            "thank-you-modal"
+        ).style.display = "none";
+    }
+
+
+    document.getElementById("address").addEventListener(
+        "input",
+        validateCheckout
+    );
+
+    document.querySelectorAll(
+        'input[name="payment"]'
+    ).forEach(input => {
+        input.addEventListener("change", validateCheckout);
+    });
+
+    updateCart();
+</script>
+
+
+<body>
+
+<header class="site-header">
+    <div class="header-content">
+
+        <a href="{{ url_for('index') }}" class="logo">
+            🍕 BestPizza
+        </a>
+
+        <nav class="main-nav">
+            {% if current_user %}
+                <span class="welcome-text">
+                    Привіт, {{ current_user }}!
+                </span>
+
+                <a href="{{ url_for('account') }}"
+                   class="nav-button">
+                    Мій акаунт
+                </a>
+
+                <a href="{{ url_for('logout') }}"
+                   class="nav-button logout-button">
+                    Вийти
+                </a>
+            {% else %}
+                <a href="{{ url_for('login') }}"
+                   class="nav-button">
+                    Увійти
+                </a>
+
+                <a href="{{ url_for('register') }}"
+                   class="nav-button register-button">
+                    Реєстрація
+                </a>
+            {% endif %}
+        </nav>
+
+    </div>
+</header>
+
+
+<main class="menu-page">
+
+    <section class="hero-section">
+        <h1>Смачні піци для кожного 🍕</h1>
+
+        <p>
+            Обери свою улюблену піцу з меню BestPizza
+        </p>
+    </section>
+
+
+    {% for menu_name, categories in menu.items() %}
+
+        <section class="menu-section">
+
+            <h2 class="menu-title">
+                {{ menu_name }}
+            </h2>
+
+            {% for category_name, products in categories.items() %}
+
+                <h3 class="category-title">
+                    {{ category_name }}
+                </h3>
+
+                <div class="pizza-grid">
+
+                    {% for product in products %}
+
+                        <article class="pizza-card">
+
+                            <div class="pizza-image-container">
+                                <img
+                                    src="{{ product.photo }}"
+                                    alt="{{ product.name }}"
+                                    class="pizza-image">
+                            </div>
+
+                            <div class="pizza-info">
+
+                                <h3 class="pizza-name">
+                                    {{ product.name }}
+                                </h3>
+
+                                <p class="pizza-description">
+                                    {{ product.sklad }}
+                                </p>
+
+                                <div class="pizza-footer">
+
+                                    <span class="pizza-price">
+                                        {{ product.price }} грн
+                                    </span>
+
+                                    {% if current_user %}
+                                        <div
+                                            class="product-controls"
+                                            data-product="{{ product.name }}">
+
+                                            <button
+                                                type="button"
+                                                class="add-button"
+                                                onclick="addProduct('{{ product.name }}', this)">
+                                                Додати
+                                            </button>
+
+                                            <div class="quantity-controls">
+                                                <button
+                                                    type="button"
+                                                    class="quantity-button"
+                                                    onclick="changeProduct('{{ product.name }}', -1)">
+                                                    −
+                                                </button>
+
+                                                <span class="quantity-number">1</span>
+
+                                                <button
+                                                    type="button"
+                                                    class="quantity-button"
+                                                    onclick="changeProduct('{{ product.name }}', 1)">
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <a
+                                            href="{{ url_for('login') }}"
+                                            class="order-button">
+                                            Увійти
+                                        </a>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+    {% endfor %}
+
+</main>
+
+
+<footer class="site-footer">
+    <p>© 2026 BestPizza. Смачно та з любов'ю 🍕</p>
+</footer>
+
+</body>
+</html>
